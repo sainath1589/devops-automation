@@ -55,7 +55,7 @@ pipeline {
             steps {
                 script {
                     // 3. Run the Container
-                    sh 'docker run -d -p 8085:8085 sainath15890/my-app1:latest'
+                    sh 'docker run -d -p 8080:8080 sainath15890/my-app1:latest'
                 }
             }
         }
