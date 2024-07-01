@@ -19,5 +19,24 @@ pipeline {
                 }
             }
         }
+        stage('Validate Image Existence') {
+            steps {
+                script {
+                    // Define your image details
+                    def image = 'europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1'
+
+                    // Use 'gcloud' to list tags for the image (without --region)
+                    def result = sh(returnStdout: true, script: "gcloud container images list-tags ${image}")
+
+                    // Check if the command returned any output (meaning the image exists)
+                    if (result.trim() != "") {
+                        echo "Image ${image} exists in GCR!"
+                    } else {
+                        error "Image ${image} does not exist in GCR."
+                    }
+                }
+            }
+        }
     } // Closing bracket for stages
 }
+
