@@ -22,10 +22,10 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonar') { 
                     sh '''
-                      mvn clean verify sonar:sonar \
-                     -Dsonar.projectKey=app2 \
-                     -Dsonar.host.url=http://35.205.162.228:9000 \
-                     -Dsonar.login=afca5b91a6ca5498940473a2774fa2c0efc409e3
+                    mvn clean verify sonar:sonar \
+                    -Dsonar.projectKey=java1 \
+                    -Dsonar.host.url=http://34.140.181.144:9000 \
+                    -Dsonar.login=780d17716e70862559125a2643708ab717a391d1
                     '''
                 }
             }
@@ -34,28 +34,29 @@ pipeline {
             steps {
                 script {
                     // 1. Build the Docker Image
-                    sh 'docker build -t sainath15890/my-app1:latest .'
+                    sh 'docker build -t europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1 .'
                 }
             }
         }
         stage('Trivy Scan') {
             steps {
                 // Run Trivy analysis
-                sh 'trivy image sainath15890/my-app1:latest > trivy_report.txt'
+                sh 'trivy image europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest > trivy_report.txt'
             }
         }
      
-         stage('Push Docker Image to Docker Hub') {
+         stage('Push Docker Image to GCR') {
             steps {
-                sh 'docker login -u sainath15890 -p 123abc456'
-                sh 'docker push sainath15890/my-app1:latest'
+                sh 'gcloud auth configure-docker \
+                    europe-west1-docker.pkg.dev'
+                sh 'docker push europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest'
             }
         }
            stage('Run Docker Container') {
             steps {
                 script {
                     // 3. Run the Container
-                    sh 'docker run -d -p 8080:8080 sainath15890/my-app1:latest'
+                    sh 'docker run -d -p 8080:8080 europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest'
                 }
             }
         }
