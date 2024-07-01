@@ -1,0 +1,23 @@
+pipeline {
+    agent any
+    environment {
+        CLOUDSDK_CORE_PROJECT='helical-button-425403-t3'
+    }
+    stages {
+        stage('gitpull') {
+            steps {
+                git url: 'https://github.com/sainath1589/devops-automation.git', branch: 'main'
+            }
+        }
+        stage('Authenticate to GCP') {
+            steps {
+                withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]){
+                    sh '''
+                     gcloud version
+                     gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"                     
+                     '''
+                }
+            }
+        }
+    } // Closing bracket for stages
+}
