@@ -28,7 +28,7 @@ metadata: # Metadata of the resource kind we are creating
   name: java-k8ssvc
 spec:
   selector:
-    app: spring-boot-k8s
+    app: java-k8s
   ports:
     - protocol: "TCP"
       port: 8080 # The port that the service is running on in the cluster
