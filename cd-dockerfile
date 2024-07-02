@@ -1,7 +1,14 @@
 pipeline {
     agent any
+    parameters {
+        string(name: 'IMAGE_NAME') // Description removed
+    }
     environment {
-        CLOUDSDK_CORE_PROJECT='helical-button-425403-t3'
+        GCLOUD_PROJECT = 'helical-button-425403-t3' // Replace with your Google Cloud project ID
+        CLUSTER_NAME = 'cicd-cluster' // Replace with your GKE cluster name
+        NAMESPACE = 'developer' // Replace with your desired namespace
+        CLUSTER_ZONE = 'asia-south1-a'
+        GCLOUD_CREDS=credentials('gcloud-creds')
     }
     stages {
         stage('gitpull') {
@@ -9,34 +16,42 @@ pipeline {
                 git url: 'https://github.com/sainath1589/devops-automation.git', branch: 'main'
             }
         }
-        stage('Authenticate to GCP') {
+        stage('login to GCP') {
             steps {
-                withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]){
+                withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]) {
                     sh '''
-                     gcloud version
-                     gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"                     
-                     '''
+                    gcloud version
+                    gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"
+                    gcloud config set project $GCLOUD_PROJECT
+                    '''
                 }
             }
         }
         stage('Validate Image Existence') {
             steps {
                 script {
-                    // Define your image details
-                    def image = 'europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1'
-
                     // Use 'gcloud' to list tags for the image (without --region)
-                    def result = sh(returnStdout: true, script: "gcloud container images list-tags ${image}")
+                    def result = sh(returnStdout: true, script: "gcloud artifacts docker images list ${params.IMAGE_NAME} --include-tags")
 
                     // Check if the command returned any output (meaning the image exists)
                     if (result.trim() != "") {
-                        echo "Image ${image} exists in GCR!"
+                        echo "Image ${params.IMAGE_NAME} exists in Artifact Registry!"
                     } else {
-                        error "Image ${image} does not exist in GCR."
+                        error "Image ${params.IMAGE_NAME} does not exist in Artifact Registry."
                     }
                 }
             }
         }
+        stage('Deploy to k8s'){
+            steps{
+                        sh '''
+                            gcloud auth activate-service-account --key-file="$GCLOUD_CREDS" 
+                            gcloud config set compute/zone $CLUSTER_ZONE
+                            gcloud container clusters get-credentials $CLUSTER_NAME
+                            kubectl apply -f deploymentservice.yaml
+                            kubectl apply -f service.yaml
+                        '''
+            }
+        }
     } // Closing bracket for stages
 }
-
