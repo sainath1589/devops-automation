@@ -2,11 +2,11 @@ pipeline {
     agent any
     parameters {
         string(name: 'IMAGE_NAME') 
+        string(name: 'NAMESPACE')
     }
     environment {
         GCLOUD_PROJECT = 'helical-button-425403-t3' 
         CLUSTER_NAME = 'cicd-cluster' 
-        NAMESPACE = 'developer' 
         CLUSTER_ZONE = 'asia-south1-a'
         GCLOUD_CREDS=credentials('gcloud-creds')
     }
@@ -27,6 +27,20 @@ pipeline {
                 }
             }
         }
+
+        stage('Validate Namespace Existence') {
+           steps {
+               script {
+                  def exists = sh(script: "kubectl get namespace ${params.NAMESPACE} -o yaml", returnStatus: true) == 0
+                   if (exists) {
+                      echo "Namespace '${params.NAMESPACE}' already exists."
+                    } else {
+                        sh(script: "kubectl create namespace ${params.NAMESPACE}", returnStatus: true)
+                        echo "Namespace '${params.NAMESPACE}' created."
+                    }
+               }
+            }
+        }
         stage('Validate Image Existence') {
             steps {
                 script {
@@ -34,7 +48,7 @@ pipeline {
                     if (result.trim() != "") {
                         echo "Image ${params.IMAGE_NAME} exists in Artifact Registry!"
                     } else {
-                        echo "error :Image ${params.IMAGE_NAME} does not exist in Artifact Registry."
+                        error "Image ${params.IMAGE_NAME} does not exist in Artifact Registry."
                         error "exit from the pipeline"
                     }
                 }
@@ -46,8 +60,9 @@ pipeline {
                     gcloud auth activate-service-account --key-file="$GCLOUD_CREDS" 
                     gcloud config set compute/zone $CLUSTER_ZONE
                     gcloud container clusters get-credentials $CLUSTER_NAME
-                    kubectl apply -f deploymentservice.yaml
-                    kubectl apply -f service.yaml
+                    kubectl apply -f deploymentservice.yaml -n "${NAMESPACE}" 
+                    kubectl apply -f service.yaml -n "${NAMESPACE}" 
+                    kubectl apply -f ingress.yaml -n "${NAMESPACE}"
                 '''
             }
         }
