@@ -16,7 +16,7 @@ pipeline {
                 git url: 'https://github.com/sainath1589/devops-automation.git', branch: 'main'
             }
         }
-        stage('login to GCP') {
+        stage('Authenticate to GCP') {
             steps {
                 withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]) {
                     sh '''
