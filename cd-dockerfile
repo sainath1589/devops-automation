@@ -41,7 +41,7 @@ pipeline {
                }
             }
         }
-        stage('Validate Image Existence') {
+        stage('Image Validation') {
             steps {
                 script {
                     def result = sh(returnStdout: true, script: "gcloud artifacts docker images list ${params.IMAGE_NAME} --include-tags")
