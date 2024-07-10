@@ -7,7 +7,7 @@ pipeline {
     environment {
         GCLOUD_PROJECT = 'oval-cyclist-426414-p0' 
         CLUSTER_NAME = 'cicd-cluster1' 
-        CLUSTER_ZONE = 'asia-south1-a'
+        CLUSTER_ZONE = 'asia-south1-b'
         GCLOUD_CREDS=credentials('gcloud-creds')
     }
     stages {
