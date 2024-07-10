@@ -1,15 +1,22 @@
 pipeline {
-    agent any 
+    agent any
     tools {
         maven 'maven'
     }
+    parameters {
+        string(name: 'GITHUB_URL')
+        string(name: 'BRANCH')
+    }
+    environment {
+        GCLOUD_CREDS=credentials('gcloud-creds')
+    }
     stages {
-        stage('Checkout Code') {
+        stage('Checkout code') {
             steps {
-                git branch: 'main', url: 'https://github.com/sainath1589/devops-automation.git' 
+                git url: "${params.GITHUB_URL}", branch: "${params.BRANCH}"
             }
         }
-        stage('Build') { 
+        stage('Maven Build') { 
             steps {
                 script {
                     def mavenHome = tool name: 'maven', type: 'maven'
@@ -20,49 +27,53 @@ pipeline {
         }
         stage('SonarQube Analysis') { 
             steps {
-                withSonarQubeEnv('sonar') { 
-                    sh '''
-                     sonar-scanner \
-                     -Dsonar.projectKey=java \
-                     -Dsonar.sources=. \
-                     -Dsonar.host.url=http://35.195.28.30:9000\
-                     -Dsonar.token=sqp_46e11830452f68b6402256e3d075d545219f1bd4
+                sh '''
+                     mvn clean verify sonar:sonar \
+                    -Dsonar.projectKey=java \
+                    -Dsonar.projectName='java' \
+                    -Dsonar.host.url=http://34.76.242.97:9000 \
+                    -Dsonar.token=sqp_8bc689bdd1289d2e425ddb477dd0bb94ebf95ef3
                     '''
-                }
             }
         }
         stage('Build Docker Image') {
             steps {
                 script {
                     // 1. Build the Docker Image
-                    sh 'docker build -t europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1 .'
+                    sh 'docker build -t europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1 .'
                 }
             }
         }
         stage('Trivy Scan') {
             steps {
                 // Run Trivy analysis
-                sh 'trivy image europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest > trivy_report.txt'
+                sh 'trivy image europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest > trivy_report.txt'
             }
         }
-     
-         stage('Push Docker Image to GCR') {
+        stage('Push Image to GCR') {
             steps {
-                sh 'gcloud auth configure-docker \
-                    europe-west1-docker.pkg.dev'
-                sh 'docker push europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest'
-            }
-        }
-           stage('Run Docker Container') {
-            steps {
-                script {
-                    // 3. Run the Container
-                    sh 'docker run -d -p 8080:8080 europe-west1-docker.pkg.dev/helical-button-425403-t3/java-app/my-app1:latest'
+                withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]) {
+                    sh '''
+                    gcloud version
+                    gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"
+                    gcloud auth configure-docker europe-west1-docker.pkg.dev
+                    docker push europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest
+                    
+                    '''
                 }
             }
         }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // 3. Run the Container
+                    sh 'docker run -d -p 8080:8080 europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest'
+                }
+            }
+        }
+        
     }
-    post {
+   post {
         success {
             // Actions to take if the pipeline succeeds
             echo 'Pipeline succeeded!'
