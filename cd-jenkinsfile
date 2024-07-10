@@ -6,8 +6,8 @@ pipeline {
     }
     environment {
         GCLOUD_PROJECT = 'oval-cyclist-426414-p0' 
-        CLUSTER_NAME = 'cicd-cluster1' 
-        CLUSTER_ZONE = 'asia-south1-b'
+        CLUSTER_NAME = 'cicd-cluster' 
+        CLUSTER_ZONE = 'europe-west1-b'
         GCLOUD_CREDS=credentials('gcloud-creds')
     }
     stages {
@@ -29,16 +29,16 @@ pipeline {
         }
 
         stage('Validate Namespace Existence') {
-           steps {
+            steps {
                script {
-                  def exists = sh(script: "kubectl get namespace ${params.NAMESPACE} -o yaml", returnStatus: true) == 0
-                   if (exists) {
-                      echo "Namespace '${params.NAMESPACE}' already exists."
+                    def exists = sh(script: "kubectl get namespace ${NAMESPACE} -o yaml", returnStatus: true) == 0
+                    if (exists) {
+                        echo "Namespace '${NAMESPACE}' already exists."
                     } else {
-                        sh(script: "kubectl create namespace ${params.NAMESPACE}", returnStatus: true)
-                        echo "Namespace '${params.NAMESPACE}' created."
+                        sh(script: "kubectl create namespace ${NAMESPACE}", returnStatus: true)
+                        echo "Namespace '${NAMESPACE}' created."
                     }
-               }
+                }
             }
         }
         stage('Image Validation') {
@@ -57,7 +57,7 @@ pipeline {
         stage('Deploy to k8s'){
             steps{
                 sh '''
-                    gcloud auth activate-service-account --key-file="$GCLOUD_CREDS" 
+                    gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"
                     gcloud config set compute/zone $CLUSTER_ZONE
                     gcloud container clusters get-credentials $CLUSTER_NAME
                     kubectl apply -f deploymentservice.yaml -n "${NAMESPACE}" 
