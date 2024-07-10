@@ -5,8 +5,8 @@ pipeline {
         string(name: 'NAMESPACE')
     }
     environment {
-        GCLOUD_PROJECT = 'helical-button-425403-t3' 
-        CLUSTER_NAME = 'cicd-cluster' 
+        GCLOUD_PROJECT = 'oval-cyclist-426414-p0' 
+        CLUSTER_NAME = 'cicd-cluster1' 
         CLUSTER_ZONE = 'asia-south1-a'
         GCLOUD_CREDS=credentials('gcloud-creds')
     }
