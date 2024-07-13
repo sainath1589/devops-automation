@@ -3,17 +3,13 @@ pipeline {
     tools {
         maven 'maven'
     }
-    parameters {
-        string(name: 'GITHUB_URL')
-        string(name: 'BRANCH')
-    }
     environment {
         GCLOUD_CREDS=credentials('gcloud-creds')
     }
     stages {
         stage('Checkout code') {
             steps {
-                git url: "${params.GITHUB_URL}", branch: "${params.BRANCH}"
+                git url: "https://github.com/sainath1589/devops-automation.git", branch: "main"
             }
         }
         stage('Maven Build') { 
@@ -31,7 +27,7 @@ pipeline {
                      mvn clean verify sonar:sonar \
                     -Dsonar.projectKey=java \
                     -Dsonar.projectName='java' \
-                    -Dsonar.host.url=http://34.76.242.97:9000 \
+                    -Dsonar.host.url=http://34.140.12.53:9000 \
                     -Dsonar.token=sqp_8bc689bdd1289d2e425ddb477dd0bb94ebf95ef3
                     '''
             }
@@ -40,7 +36,7 @@ pipeline {
             steps {
                 script {
                     // 1. Build the Docker Image
-                    sh 'docker build -t europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1 .'
+                    sh 'docker build -t europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:v1 .'
                 }
             }
         }
@@ -50,24 +46,16 @@ pipeline {
                 sh 'trivy image europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest > trivy_report.txt'
             }
         }
-        stage('Push Image to GCR') {
+        stage('Push Image to Artifact Registry') {
             steps {
                 withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]) {
                     sh '''
                     gcloud version
                     gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"
                     gcloud auth configure-docker europe-west1-docker.pkg.dev
-                    docker push europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest
+                    docker push europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:v1
                     
                     '''
-                }
-            }
-        }
-        stage('Run Docker Container') {
-            steps {
-                script {
-                    // 3. Run the Container
-                    sh 'docker run -d -p 8080:8080 europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest'
                 }
             }
         }
