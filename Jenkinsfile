@@ -4,63 +4,68 @@ pipeline {
         maven 'maven'
     }
     environment {
-        GCLOUD_CREDS=credentials('gcloud-creds')
+        SCANNER_HOME = tool 'sonar'
     }
     stages {
-        stage('Checkout code') {
+        stage('Git Clone') {
             steps {
-                git url: "https://github.com/sainath1589/devops-automation.git", branch: "main"
+                echo 'Cloning Git repository...'
+                git url: 'https://github.com/sainath1589/devops-automation.git', branch: 'main'
             }
         }
-        stage('Maven Build') { 
+        stage('Maven Build') {
             steps {
-                script {
-                    def mavenHome = tool name: 'maven', type: 'maven'
-                    def mavenCMD = "${mavenHome}/bin/mvn"
-                    sh "${mavenCMD} clean package" 
-                }
+                echo 'Building the project...'
+                sh 'mvn clean package'
             }
         }
-        stage('SonarQube Analysis') { 
+        stage('SonarQube Analysis') {
             steps {
-                sh '''
-                     mvn clean verify sonar:sonar \
-                    -Dsonar.projectKey=java \
-                    -Dsonar.projectName='java' \
-                    -Dsonar.host.url=http://34.140.12.53:9000 \
-                    -Dsonar.token=sqp_8bc689bdd1289d2e425ddb477dd0bb94ebf95ef3
+                echo 'Running SonarQube analysis...'
+                withSonarQubeEnv('sonar') {
+                    sh '''
+                        mvn clean verify sonar:sonar \
+                        -Dsonar.projectKey=java \
+                        -Dsonar.host.url=http://35.202.63.52:9000 \
+                        -Dsonar.login=sqp_9d12f2bc2827b148986c26f38bb8f6fdd2458af3
                     '''
+                }
             }
         }
-        stage('Build Docker Image') {
+        stage('Docker Image Creation') {
             steps {
-                script {
-                    // 1. Build the Docker Image
-                    sh 'docker build -t europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:v1 .'
-                }
+                echo 'Creating Docker image...'
+                sh '''
+                    docker build -t us-central1-docker.pkg.dev/cranjana/java-app/my-app:latest .
+                '''
             }
         }
         stage('Trivy Scan') {
             steps {
-                // Run Trivy analysis
-                sh 'trivy image europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:latest > trivy_report.txt'
+                echo 'Scanning the Docker image with Trivy...'
+                sh '''
+                    trivy image us-central1-docker.pkg.dev/cranjana/java-app/my-app:latest > trivy_report.txt
+                '''
+                echo 'Trivy scan results saved to trivy_report.txt'
             }
         }
-        stage('Push Image to Artifact Registry') {
+        stage('Authenticate with Google Artifact Registry and Push Image') {
             steps {
-                withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCLOUD_CREDS')]) {
+                withCredentials([file(credentialsId: 'jenkinskey', variable: 'GCLOUD_KEYFILE_JSON')]) {
+                    echo 'Authenticating with Google Cloud using service account key...'
                     sh '''
-                    gcloud version
-                    gcloud auth activate-service-account --key-file="$GCLOUD_CREDS"
-                    gcloud auth configure-docker europe-west1-docker.pkg.dev
-                    docker push europe-west1-docker.pkg.dev/oval-cyclist-426414-p0/java-app/my-app1:v1
-                    
+                        gcloud version
+                        gcloud auth activate-service-account --key-file="$GCLOUD_KEYFILE_JSON"
+                        gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+                        docker images
+                        docker push us-central1-docker.pkg.dev/cranjana/java-app/my-app:latest
                     '''
                 }
             }
         }
-        
     }
+}
+
    post {
         success {
             // Actions to take if the pipeline succeeds
